@@ -9,7 +9,6 @@ load_dotenv()
 # ==================== CONFIG ====================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 REQUIRED_CHANNEL = os.getenv("REQUIRED_CHANNEL", "").lstrip("@")
-ADMIN_IDS = [int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip().isdigit()]
 ZEUS_SOURCE_URL = os.getenv(
     "ZEUS_SOURCE_URL",
     "https://raw.githubusercontent.com/panel-zeus/Z-E-U-S/main/Source.js"
@@ -72,9 +71,11 @@ def callback(call):
     if call.data == "check_join":
         if check_channel_membership(call.from_user.id):
             bot.answer_callback_query(call.id)
-            bot.edit_message_text("✅ عضویت شما تایید شد!\n\nسلام <b>{}</b>\n\nاز منوی زیر گزینه مورد نظر را انتخاب کنید:".format(call.from_user.first_name),
-                                call.message.chat.id, call.message.message_id,
-                                reply_markup=main_menu_kb(), parse_mode="HTML")
+            bot.edit_message_text(
+                f"✅ عضویت شما تایید شد!\n\nسلام <b>{call.from_user.first_name}</b>\n\nاز منوی زیر گزینه مورد نظر را انتخاب کنید:",
+                call.message.chat.id, call.message.message_id,
+                reply_markup=main_menu_kb(), parse_mode="HTML"
+            )
         else:
             bot.answer_callback_query(call.id, "❌ هنوز در کانال عضو نشده‌اید!", show_alert=True)
 
@@ -95,7 +96,7 @@ def callback(call):
 @bot.message_handler(content_types=['text'])
 def handle_token(message):
     token = message.text.strip()
-    if len(token) > 30:
+    if len(token) > 30 and "workers" in token:
         bot.reply_to(message, "✅ توکن دریافت شد! پنل در حال ساخت و آپدیت در Cloudflare...")
 
 bot.polling(none_stop=True, interval=0, timeout=30)
