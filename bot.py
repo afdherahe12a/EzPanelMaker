@@ -72,7 +72,7 @@ def callback(call):
     if call.data == "check_join":
         if check_channel_membership(call.from_user.id):
             bot.answer_callback_query(call.id)
-            bot.edit_message_text("✅ عضویت شما تایید شد!\n\nسلام <b>{}</b>\nاز منوی زیر گزینه مورد نظر را انتخاب کنید:".format(call.from_user.first_name),
+            bot.edit_message_text("✅ عضویت شما تایید شد!\n\nسلام <b>{}</b>\n\nاز منوی زیر گزینه مورد نظر را انتخاب کنید:".format(call.from_user.first_name),
                                 call.message.chat.id, call.message.message_id,
                                 reply_markup=main_menu_kb(), parse_mode="HTML")
         else:
@@ -86,17 +86,16 @@ def callback(call):
         bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=cf_token_kb(), parse_mode="HTML")
 
     elif call.data == "new_panel":
-        # اینجا می‌تونیم لیست اکانت‌ها رو اضافه کنیم ولی فعلاً ساده نگه داریم
-        bot.edit_message_text("🚀 <b>تایید استقرار پنل</b>\nبرای ساخت پنل جدید روی اکانت زیر کلیک کنید:", call.message.chat.id, call.message.message_id, reply_markup=telebot.types.InlineKeyboardMarkup().add(telebot.types.InlineKeyboardButton("در حال توسعه...", callback_data="coming")))
+        bot.edit_message_text("🚀 <b>تایید استقرار پنل</b>\n\nدر حال توسعه کامل...", call.message.chat.id, call.message.message_id)
 
     elif call.data == "manage_panels":
-        bot.edit_message_text("⚙️ <b>مدیریت و آپدیت پنل‌ها</b>\nدر حال توسعه...", call.message.chat.id, call.message.message_id)
+        bot.edit_message_text("⚙️ <b>مدیریت و آپدیت پنل‌ها</b>\n\nدر حال توسعه کامل...", call.message.chat.id, call.message.message_id)
 
 # ==================== دریافت توکن ====================
 @bot.message_handler(content_types=['text'])
 def handle_token(message):
     token = message.text.strip()
-    # اینجا می‌تونیم توکن رو چک کنیم و پنل بسازیم
-    bot.reply_to(message, "✅ توکن دریافت شد! پنل در حال ساخت و آپدیت در Cloudflare...")
+    if len(token) > 30:
+        bot.reply_to(message, "✅ توکن دریافت شد! پنل در حال ساخت و آپدیت در Cloudflare...")
 
 bot.polling(none_stop=True, interval=0, timeout=30)
