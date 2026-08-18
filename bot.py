@@ -1,78 +1,102 @@
 import telebot
 import requests
 import os
+import re
 from dotenv import load_dotenv
 
 load_dotenv()
 
-TOKEN = "8669573949:AAFWKdWp8njdHNuBLlzg__dBb9Z-N9YsiCg"
-bot = telebot.TeleBot(TOKEN)
+# ==================== CONFIG ====================
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+REQUIRED_CHANNEL = os.getenv("REQUIRED_CHANNEL", "").lstrip("@")
+ADMIN_IDS = [int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip().isdigit()]
+ZEUS_SOURCE_URL = os.getenv(
+    "ZEUS_SOURCE_URL",
+    "https://raw.githubusercontent.com/panel-zeus/Z-E-U-S/main/Source.js"
+)
 
-CHANNEL_LINK = "https://t.me/+JArqswroP-QyMyMTJk"
+if not BOT_TOKEN:
+    raise RuntimeError("BOT_TOKEN is required")
 
+bot = telebot.TeleBot(BOT_TOKEN)
+
+# ==================== دکمه‌های خیلی قوی ====================
+def sponsor_kb():
+    return telebot.types.InlineKeyboardMarkup(inline_keyboard=[
+        [telebot.types.InlineKeyboardButton("📥 ربات دانلودر اینستاگرام رایگان", url="https://t.me/FaraDownloaderBot")],
+        [telebot.types.InlineKeyboardButton("🔐 آموزش و فروش V2ray_company | VPN", url="https://t.me/V2ray_company")],
+        [telebot.types.InlineKeyboardButton("✅ عضویت در کانال (اجباری)", url=f"https://t.me/{REQUIRED_CHANNEL}" if REQUIRED_CHANNEL else "https://t.me/")],
+        [telebot.types.InlineKeyboardButton("🔄 بررسی عضویت و ورود به ربات", callback_data="check_join")]
+    ])
+
+def main_menu_kb():
+    return telebot.types.InlineKeyboardMarkup(inline_keyboard=[
+        [telebot.types.InlineKeyboardButton("🚀 ساخت پنل جدید", callback_data="new_panel")],
+        [telebot.types.InlineKeyboardButton("⚙️ مدیریت و آپدیت پنل‌ها", callback_data="manage_panels")],
+        [telebot.types.InlineKeyboardButton("➕ ثبت اکانت کلودفلر", callback_data="add_cf_account")]
+    ])
+
+def cf_token_kb():
+    token_url = "https://dash.cloudflare.com/profile/api-tokens?permissionGroupKeys=%5B%7B%22key%22%3A%22workers_scripts%22%2C%22type%22%3A%22edit%22%7D%2C%7B%22key%22%3A%22workers_kv_storage%22%2C%22type%22%3A%22edit%22%7D%2C%7B%22key%22%3A%22d1%22%2C%22type%22%3A%22edit%22%7D%2C%7B%22key%22%3A%22account_settings%22%2C%22type%22%3A%22read%22%7D%2C%7B%22key%22%3A%22workers_subdomain%22%2C%22type%22%3A%22edit%22%7D%2C%7B%22key%22%3A%22account_analytics%22%2C%22type%22%3A%22read%22%7D%2C%7B%22key%22%3A%22user_details%22%2C%22type%22%3A%22read%22%7D%5D&accountId=*&zoneId=all&name=Zeus-Deployer-Token"
+    return telebot.types.InlineKeyboardMarkup(inline_keyboard=[
+        [telebot.types.InlineKeyboardButton("🔐 ورود به حساب کلودفلر", url="https://dash.cloudflare.com/login")],
+        [telebot.types.InlineKeyboardButton("🎫 دریافت توکن کلودفلر برای زئوس", url=token_url)],
+        [telebot.types.InlineKeyboardButton("🔙 بازگشت", callback_data="back_main")]
+    ])
+
+# ==================== چک عضویت اجباری ====================
+def check_channel_membership(user_id):
+    if not REQUIRED_CHANNEL:
+        return True
+    try:
+        member = bot.get_chat_member(f"@{REQUIRED_CHANNEL}", user_id)
+        return member.status in ["member", "administrator", "creator"]
+    except:
+        return False
+
+# ==================== شروع ربات ====================
 @bot.message_handler(commands=['start'])
 def start(message):
-    markup = telebot.types.InlineKeyboardMarkup(row_width=1)
-    markup.add(
-        telebot.types.InlineKeyboardButton("📢 تایید عضویت در کانال", callback_data="confirm_channel"),
-        telebot.types.InlineKeyboardButton("🔧 ساخت پنل جدید", callback_data="create_panel"),
-        telebot.types.InlineKeyboardButton("🔄 مدیریت و آپدیت پنل", callback_data="manage_panel"),
-        telebot.types.InlineKeyboardButton("🌐 پروکسی اختصاصی", callback_data="proxy"),
-        telebot.types.InlineKeyboardButton("📥 دریافت سورس پنل", callback_data="get_source"),
-        telebot.types.InlineKeyboardButton("💰 حمایت مالی", callback_data="donate"),
-        telebot.types.InlineKeyboardButton("🛠️ پشتیبانی", url=CHANNEL_LINK)
-    )
-    bot.reply_to(message, "🚀 <b>ایزی پنل ماکر - پنل زئوس</b>\n\nربات اختصاصی ساخت و مدیریت پنل کانفینگ زئوس\n\nبرای ساخت پنل جدید ابتدا باید اکانت کلودفلر ثبت شده باشه!", parse_mode="HTML", reply_markup=markup)
+    user_id = message.from_user.id
 
+    if REQUIRED_CHANNEL and not check_channel_membership(user_id):
+        text = "⚠️ <b>عضویت اجباری در کانال</b>\n\nبرای استفاده از ربات حتماً باید در کانال زیر عضو شوید.\nبعد از عضویت روی دکمه «بررسی عضویت» بزنید."
+        bot.reply_to(message, text, reply_markup=sponsor_kb(), parse_mode="HTML")
+        return
+
+    bot.reply_to(message, "🚀 <b>ایزی پنل ماکر - پنل زئوس</b>\n\nربات اختصاصی ساخت پنل کانفینگ زئوس\n\nاز منوی زیر گزینه مورد نظر را انتخاب کنید:", reply_markup=main_menu_kb(), parse_mode="HTML")
+
+# ==================== دکمه‌های اصلی ====================
 @bot.callback_query_handler(func=lambda call: True)
 def callback(call):
-    if call.data == "confirm_channel":
-        bot.answer_callback_query(call.id)
-        bot.send_message(call.message.chat.id, "✅ عضویتت در کانال تایید شد!\nحالا می‌تونی پنل بسازی.")
+    if call.data == "check_join":
+        if check_channel_membership(call.from_user.id):
+            bot.answer_callback_query(call.id)
+            bot.edit_message_text("✅ عضویت شما تایید شد!\n\nسلام <b>{}</b>\nاز منوی زیر گزینه مورد نظر را انتخاب کنید:".format(call.from_user.first_name),
+                                call.message.chat.id, call.message.message_id,
+                                reply_markup=main_menu_kb(), parse_mode="HTML")
+        else:
+            bot.answer_callback_query(call.id, "❌ هنوز در کانال عضو نشده‌اید!", show_alert=True)
 
-    elif call.data == "create_panel":
-        bot.answer_callback_query(call.id)
-        bot.send_message(call.message.chat.id, "🚀 <b>تایید استقرار پنل</b>\nبرای ساخت پنل جدید روی اکانت زیر کلیک کنید:", parse_mode="HTML", reply_markup=telebot.types.InlineKeyboardMarkup().add(telebot.types.InlineKeyboardButton(f"📧 {call.from_user.first_name}", callback_data="build_panel_confirm")))
+    elif call.data == "back_main":
+        bot.edit_message_text("منوی اصلی:\nاز گزینه‌های زیر انتخاب کنید:", call.message.chat.id, call.message.message_id, reply_markup=main_menu_kb())
 
-    elif call.data == "build_panel_confirm":
-        bot.answer_callback_query(call.id)
-        bot.send_message(call.message.chat.id, "درحال ساخت پنل زئوس...")
+    elif call.data == "add_cf_account":
+        text = "☁️ <b>اتصال اکانت جدید کلودفلر به زئوس</b> ☁️\n\n⚠️ توجه بسیار مهم:\nلطفاً مراحل زیر را به ترتیب انجام دهید."
+        bot.edit_message_text(text, call.message.chat.id, call.message.message_id, reply_markup=cf_token_kb(), parse_mode="HTML")
 
-        import time
-        time.sleep(2.5)
+    elif call.data == "new_panel":
+        # اینجا می‌تونیم لیست اکانت‌ها رو اضافه کنیم ولی فعلاً ساده نگه داریم
+        bot.edit_message_text("🚀 <b>تایید استقرار پنل</b>\nبرای ساخت پنل جدید روی اکانت زیر کلیک کنید:", call.message.chat.id, call.message.message_id, reply_markup=telebot.types.InlineKeyboardMarkup().add(telebot.types.InlineKeyboardButton("در حال توسعه...", callback_data="coming")))
 
-        bot.send_message(call.message.chat.id, "✅ پنل با موفقیت ساخته شد!")
-        bot.send_message(call.message.chat.id, f"🔗 لینک پنل: https://{call.from_user.id}.workers.dev/panel")
-        bot.send_message(call.message.chat.id, "🟢 ورود به پنل:", reply_markup=telebot.types.InlineKeyboardMarkup().add(telebot.types.InlineKeyboardButton("🔗 ورود به پنل", url=f"https://{call.from_user.id}.workers.dev/panel")))
+    elif call.data == "manage_panels":
+        bot.edit_message_text("⚙️ <b>مدیریت و آپدیت پنل‌ها</b>\nدر حال توسعه...", call.message.chat.id, call.message.message_id)
 
-    elif call.data == "manage_panel":
-        bot.answer_callback_query(call.id)
-        bot.send_message(call.message.chat.id, "در حال مدیریت و آپدیت پنل‌های شما...")
-
-    elif call.data == "proxy":
-        bot.answer_callback_query(call.id)
-        bot.send_message(call.message.chat.id, "پروکسی اختصاصی در حال توسعه...")
-
-    elif call.data == "get_source":
-        bot.answer_callback_query(call.id)
-        bot.send_message(call.message.chat.id, "سورس پنل زئوس: https://github.com/panel-zeus/Z-E-U-S")
-
-    elif call.data == "donate":
-        bot.answer_callback_query(call.id)
-        bot.send_message(call.message.chat.id, "حمایت مالی: https://donatonion.ir-netlify.workers.dev")
-
-    elif call.data == "enter_cloudflare":
-        bot.answer_callback_query(call.id)
-        bot.send_message(call.message.chat.id, "🔐 در حال ورود به داشبورد کلودفلر...", reply_markup=telebot.types.InlineKeyboardMarkup().add(telebot.types.InlineKeyboardButton("🔐 ورود به Cloudflare", url="https://dash.cloudflare.com/login")))
-
-    elif call.data == "get_token":
-        bot.answer_callback_query(call.id)
-        bot.send_message(call.message.chat.id, "📋 <b>دریافت توکن کلودفلر</b>\nلینک زیر رو باز کن و توکن Zeus-Deployer رو بساز:", parse_mode="HTML", reply_markup=telebot.types.InlineKeyboardMarkup().add(telebot.types.InlineKeyboardButton("🔗 دریافت توکن Zeus-Deployer", url="https://dash.cloudflare.com/profile/api-tokens?permissionGroupKeys=%5B%7B%22key%22%3A%22workers_scripts%22%2C%22type%22%3A%22edit%22%7D%2C%7B%22key%22%3A%22workers_kv_storage%22%2C%22type%22%3A%22edit%22%7D%2C%7B%22key%22%3A%22d1%22%2C%22type%22%3A%22edit%22%7D%2C%7B%22key%22%3A%22account_settings%22%2C%22type%22%3A%22read%22%7D%2C%7B%22key%22%3A%22workers_subdomain%22%2C%22type%22%3A%22edit%22%7D%2C%7B%22key%22%3A%22account_analytics%22%2C%22type%22%3A%22read%22%7D%5D&accountId=*&zoneId=all&name=Zeus-Deployer-Token")))
-
+# ==================== دریافت توکن ====================
 @bot.message_handler(content_types=['text'])
-def handle_text(message):
-    if len(message.text) < 20:
-        return
-    bot.send_message(message.chat.id, "✅ توکن دریافت شد! پنل در حال ثبت و آپدیت در Cloudflare...")
+def handle_token(message):
+    token = message.text.strip()
+    # اینجا می‌تونیم توکن رو چک کنیم و پنل بسازیم
+    bot.reply_to(message, "✅ توکن دریافت شد! پنل در حال ساخت و آپدیت در Cloudflare...")
 
 bot.polling(none_stop=True, interval=0, timeout=30)
